@@ -72,7 +72,6 @@ setup(
         'orchestra': [
             # For apache-libcloud when using python < 2.7.9
             'backports.ssl_match_hostname',
-            'beanstalkc3 >= 0.4.0',
             'httplib2',
             'ndg-httpsclient',  # for requests, urllib3
             'pyasn1',           # for requests, urllib3
