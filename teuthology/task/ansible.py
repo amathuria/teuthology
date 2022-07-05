@@ -188,7 +188,12 @@ class Ansible(Task):
         Determine whether or not we're using an existing inventory file
         """
         self.inventory = self.config.get('inventory')
-        etc_ansible_hosts = '/etc/ansible/hosts'
+        repo_path = fetch_repo(
+            'https://github.com/ceph/ceph-sepia-secrets.git',
+            'amathuria-increase-partitions'
+        )
+        etc_ansible_hosts = "%s/ansible/inventory" % self.repo_path
+        log.info("ANSIBLE HOSTS: %s", etc_ansible_hosts)
         if self.inventory:
             self.inventory = os.path.expanduser(self.inventory)
         elif os.path.exists(etc_ansible_hosts):
@@ -414,7 +419,7 @@ class CephLab(Ansible):
     def begin(self):
         # Write foo to ~/.vault_pass.txt if it's missing.
         # In almost all cases we don't need the actual vault password.
-        # Touching an empty file broke as of Ansible 2.4
+        # Touching an empty file broke as of Ansible 2.4    
         vault_pass_path = os.path.expanduser('~/.vault_pass.txt')
         if not os.path.exists(vault_pass_path):
             with open(vault_pass_path, 'w') as f:
