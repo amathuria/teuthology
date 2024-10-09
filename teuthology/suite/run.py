@@ -428,8 +428,9 @@ class Run(object):
         return base_args
 
 
-    def write_rerun_memo(self):
-        args = copy.deepcopy(self.base_args)
+    def write_rerun_memo(self, first_job_args):
+        log.info(" Add arguments for first job ")
+        args = copy.deepcopy(first_job_args)
         args.append('--first-in-suite')
         if self.args.subset:
             subset = '/'.join(str(i) for i in self.args.subset)
@@ -437,28 +438,21 @@ class Run(object):
         if self.args.no_nested_subset:
             args.extend(['--no-nested-subset'])
         args.extend(['--seed', str(self.args.seed)])
-        util.teuthology_schedule(
-            args=args,
-            dry_run=self.args.dry_run,
-            verbose=self.args.verbose,
-            log_prefix="Memo: ")
+        return args
 
 
-    def write_result(self):
-        arg = copy.deepcopy(self.base_args)
+    def write_result(self, last_job_args):
+        log.info(" Add arguments for last job ")
+        arg = copy.deepcopy(last_job_args)
         arg.append('--last-in-suite')
         if self.base_config.email:
             arg.extend(['--email', self.base_config.email])
         if self.args.timeout:
             arg.extend(['--timeout', self.args.timeout])
-        util.teuthology_schedule(
-            args=arg,
-            dry_run=self.args.dry_run,
-            verbose=self.args.verbose,
-            log_prefix="Results: ")
         results_url = get_results_url(self.base_config.name)
         if results_url:
             log.info("Test results viewable at %s", results_url)
+        return arg
 
 
     def prepare_and_schedule(self):
@@ -478,8 +472,8 @@ class Run(object):
 
         num_jobs = self.schedule_suite()
 
-        if num_jobs:
-            self.write_result()
+        #if num_jobs:
+        #    self.write_result()
 
     def collect_jobs(self, arch, configs, newest=False, limit=0):
         jobs_to_schedule = []
@@ -545,6 +539,26 @@ class Run(object):
         return jobs_missing_packages, jobs_to_schedule
 
     def schedule_jobs(self, jobs_missing_packages, jobs_to_schedule, name):
+
+        if len(jobs_to_schedule) == 1:
+            job = jobs_to_schedule[0]
+            job['args'] = self.write_rerun_memo(job['args'])
+            job['args'] = self.write_result(job['args'])
+            log.info("First job args: %s", job['args'])
+            jobs_to_schedule[0] =job
+
+        else:
+            first_job = jobs_to_schedule[0]
+            first_job['args'] = self.write_rerun_memo(first_job['args'])
+            log.info("First job args: %s", first_job['args'])
+            jobs_to_schedule[0] = first_job
+
+            last_job = jobs_to_schedule[-1]
+            last_job['args'] = self.write_result(last_job['args'])
+            log.info("Last job args: %s", last_job['args'])
+            jobs_to_schedule[-1] = last_job
+
+
         for job in jobs_to_schedule:
             log.info(
                 'Scheduling %s', job['desc']
@@ -714,8 +728,8 @@ Note: If you still want to go ahead, use --job-threshold 0'''
         with open(base_yaml_path, 'w+b') as base_yaml:
             base_yaml.write(str(self.base_config).encode())
 
-        if jobs_to_schedule:
-            self.write_rerun_memo()
+        #if jobs_to_schedule:
+        #    self.write_rerun_memo()
 
         # Before scheduling jobs, check the priority
         if self.args.priority and jobs_to_schedule and not self.args.force_priority:

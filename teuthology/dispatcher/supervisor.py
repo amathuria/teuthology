@@ -79,11 +79,13 @@ def main(args):
 def run_job(job_config, teuth_bin_path, archive_dir, verbose):
     safe_archive = safepath.munge(job_config['name'])
     if job_config.get('first_in_suite') or job_config.get('last_in_suite'):
+        '''
         if teuth_config.results_server:
             try:
                 report.try_delete_jobs(job_config['name'], job_config['job_id'])
             except Exception:
                 log.exception("Unable to delete job %s", job_config['job_id'])
+        '''
         job_archive = os.path.join(archive_dir, safe_archive)
         args = [
             os.path.join(teuth_bin_path, 'teuthology-results'),
@@ -98,7 +100,7 @@ def run_job(job_config, teuth_bin_path, archive_dir, verbose):
                 args.extend(['--subset', job_config['subset']])
             if job_config.get('no_nested_subset'):
                 args.extend(['--no-nested-subset'])
-        else:
+        if job_config.get('last_in_suite'):
             log.info('Generating results for %s', job_config['name'])
             timeout = job_config.get('results_timeout',
                                      teuth_config.results_timeout)
@@ -115,7 +117,7 @@ def run_job(job_config, teuth_bin_path, archive_dir, verbose):
         for f in os.listdir(job_config['archive_path']):
             os.remove(os.path.join(job_config['archive_path'], f))
         os.rmdir(job_config['archive_path'])
-        return
+        #return
 
     log.info('Running job %s', job_config['job_id'])
 
@@ -339,8 +341,8 @@ def run_with_watchdog(process, job_config):
     extra_info = dict(status='dead')
     if hit_max_timeout:
         extra_info['failure_reason'] = 'hit max job timeout'
-    if not (job_config.get('first_in_suite') or job_config.get('last_in_suite')):
-        report.try_push_job_info(job_info, extra_info)
+    #if not (job_config.get('first_in_suite') or job_config.get('last_in_suite')):
+    report.try_push_job_info(job_info, extra_info)
 
 
 def create_fake_context(job_config, block=False):
